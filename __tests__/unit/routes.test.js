@@ -1,23 +1,35 @@
-import { describe, test, expect, jest } from "@jest/globals";
+import { describe, test, expect, jest, beforeEach } from "@jest/globals";
+import { logger } from "../../src/logger.js";
 import Routes from "../../src/routes.js";
+import UploadHanlder from "../../src/uploadHandler.js";
+import TestUtil from "../_util/testUtil.js";
 
-const defaultParams = {
-  req:{
-    headers:{
-      "Content-Type":"multipart/form-data"
-    },
-    method:"",
-    body:{}
-  },
-  res:{
-    setHeader: jest.fn(),
-    writeHead: jest.fn(),
-    end: jest.fn()
-  },
-  values: () => Object.values(defaultParams)
-}; 
 
 describe("Routes suite test", () => {
+  const request = TestUtil.generateReadableStream(["file"]);
+  const response = TestUtil.generateWritableStream( () => {});
+  
+  const defaultParams = {
+    req: Object.assign(request, {
+      headers:{
+        "Content-Type":"multipart/form-data"
+      },
+      method:"",
+      body:{}
+    }),
+    res:Object.assign(response, {
+      setHeader: jest.fn(),
+      writeHead: jest.fn(),
+      end: jest.fn()
+    }),
+    values: () => Object.values(defaultParams)
+  }; 
+
+  beforeEach( () => {
+    jest.spyOn(logger, "info").mockImplementation();
+  });
+
+
   describe("#setSocketInstance", () => {
     test("setSocket should store a io instance", () => {
       const routes = new Routes();
@@ -142,4 +154,31 @@ describe("Routes suite test", () => {
     });
   });
 
+  describe("#POST", () => {
+    test("it should validate post rout workflow", async () => {
+      const routes = new Routes("/tmp");
+      const options = {
+        ...defaultParams
+      };
+
+      options.req.method = "POST";
+      options.req.url = "?socketId=10";
+
+      jest.spyOn( UploadHanlder.prototype, UploadHanlder.prototype.registerEvents.name)
+        .mockImplementation( (headers, onFinish) => {
+          const writable = TestUtil.generateWritableStream( () => {});
+          writable.on("finish", onFinish);
+
+          return writable;
+        });
+
+      await routes.handler(...options.values());
+
+      expect(UploadHanlder.prototype.registerEvents).toHaveBeenCalled();
+      expect(options.res.writeHead).toHaveBeenCalledWith(200);
+      
+      const expectedResult = JSON.stringify({result: "Files uploaded with success! "});
+      expect(defaultParams.res.end).toHaveBeenCalledWith(expectedResult);
+    });
+  });
 });

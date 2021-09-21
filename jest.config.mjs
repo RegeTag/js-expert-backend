@@ -31,5 +31,8 @@ export default {
   ],
   collectCoverageFrom: [
     "src/**/*.js", "!src/**/index.js"
+  ],
+  testPathIgnorePatterns: [
+    "./__tests__/_util"
   ]
 };
