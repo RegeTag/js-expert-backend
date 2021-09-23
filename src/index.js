@@ -1,4 +1,5 @@
 import https from "https";
+import http from "http";
 import fs from "fs";
 import { Server } from "socket.io";
 import { logger } from "./logger.js";
@@ -7,15 +8,22 @@ import Routes from "./routes.js";
 
 const PORT = process.env.PORT || 3000;
 
+const isProduction = process.env.NODE_ENV === "production" ? true : false;
+const protocol = isProduction ? http : https;
+process.env.USER = process.env.USER ?? "system";
+
 const localHostSSL = { // It have all https certificates
   key: fs.readFileSync("./certificates/key.pem"),
   cert: fs.readFileSync("./certificates/cert.pem")
 };
 
+
+const sslConfig = isProduction ? {} : localHostSSL;
+
 const routes = new Routes();
 
 //defines the routes
-const server = https.createServer(localHostSSL, routes.handler.bind(routes));
+const server = protocol.createServer(sslConfig, routes.handler.bind(routes));
 
 
 //create a websocket server
@@ -34,7 +42,9 @@ io.on( "connection", socket => logger.info("Connection on socketio:", socket.id)
 //Start server logs
 const startServer = () => {
   const { address, port } = server.address();
-  logger.info(`app running at https://${address}:${port}`);
+  const protocol = isProduction ? "http" : "https";
+  
+  logger.info(`app running at ${protocol}://${address}:${port}`);
 };
 
 
