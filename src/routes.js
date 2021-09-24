@@ -4,6 +4,7 @@ import UploadHandler from "./uploadHandler.js";
 import { resolve, dirname } from "path";
 import { fileURLToPath, parse } from "url";
 import { pipeline } from "stream/promises";
+import DownloadHandler from "./downloadHandler.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const defaultDownloadsFolder = resolve(__dirname, "..", "downloads");
@@ -66,11 +67,48 @@ export default class Routes {
     res.writeHead(200);
     return res.end(JSON.stringify(files));
   }
+
   
   handler(req, res){
     res.setHeader("Access-Control-Allow-Origin", "*");
-    const method = this[req.method.toLowerCase()] || this.defaultRoute;
 
-    return method.apply(this, [req, res]);
+    const method =  req => {
+      const url = req.url.split("?");
+
+      if(url[0] === "/download"){
+        const downloadEndPoint = new DownloadEndPoint(this.downloadsFolder);
+
+        return downloadEndPoint[req.method.toLowerCase()] || this.defaultRoute;
+      }else {
+        return this[req.method.toLowerCase()] || this.defaultRoute;
+      }
+    };
+
+    return method(req).apply(this, [req, res]);
+  }
+}
+
+class DownloadEndPoint{
+  constructor(downloadsFolder){
+    this.downloadsFolder = downloadsFolder;
+  }
+
+  async get(req, res){
+
+    const downloadHandler = new DownloadHandler({downloadsFolder: this.downloadsFolder});
+    const { query: { file } } = parse(req.url, true);
+    const { filePath, size } = await downloadHandler.checkForFile(file);
+
+    if(!filePath){
+      res.writeHead(400);
+      return res.end();
+    }
+
+    res.writeHead(200, "ok", {
+      "Content-Disposition": `attachment; filename=${file}`,
+      "content-length": size
+    });
+
+    downloadHandler.sendWritable(filePath, res);
   }
 }

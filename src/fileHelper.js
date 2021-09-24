@@ -5,6 +5,12 @@ import prettyBytes from "pretty-bytes";
 export default class FileHelper{
   constructor(){}
 
+  static async getSingleFileStatus(filePath){
+    const fileStatus = await fs.promises.stat(filePath);
+
+    return fileStatus;
+  }
+
   static async getFileStatus(downloadsFolder){
     const currentFiles = await fs.promises.readdir(downloadsFolder);
 

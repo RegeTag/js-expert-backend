@@ -37,7 +37,7 @@ const io = new Server(server, {
 //Defines the socket.io sever globally on the routes
 routes.setSocketInstance(io);
 
-io.on( "connection", socket => logger.info("Connection on socketio:", socket.id));
+io.on( "connection", socket => logger.info(`Connection on socketio:${socket.id}`));
 
 //Start server logs
 const startServer = () => {
